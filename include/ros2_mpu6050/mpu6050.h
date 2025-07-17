@@ -37,6 +37,7 @@
 #include <string>
 #include <memory>
 #include <cstdint>
+#include <array>
 
 class Mpu6050 {
 public:
