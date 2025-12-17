@@ -7,9 +7,9 @@ using namespace std::chrono_literals;
 
 Mpu6050Node::Mpu6050Node(const std::string& name)
     : Node(name)
-    , mpu6050_dev_{std::make_unique<Mpu6050>()}
 {
     // Declare parameters
+    this->declare_parameter<int>("i2c_address", 0x68);
     this->declare_parameter<int>("gyro_fs_sel", 0);
     this->declare_parameter<int>("accel_afs_sel", 0);
     this->declare_parameter<int>("dlpf_cfg", 0);
@@ -21,6 +21,11 @@ Mpu6050Node::Mpu6050Node(const std::string& name)
     this->declare_parameter<double>("accel_y_offset", 0.0);
     this->declare_parameter<double>("accel_z_offset", 0.0);
 
+    /* Initialize MPU6050 device with I2C parameters */
+    int i2c_address = this->get_parameter("i2c_address").as_int();
+    mpu6050_dev_ = std::make_unique<Mpu6050>("/dev/i2c-1", i2c_address);
+
+    RCLCPP_INFO(this->get_logger(), "MPU6050 initialized at address 0x%02X", i2c_address);
     /* Assign offset values */
     gyro_x_offset_ = this->get_parameter("gyro_x_offset").as_double();
     gyro_y_offset_ = this->get_parameter("gyro_y_offset").as_double();

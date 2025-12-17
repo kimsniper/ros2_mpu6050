@@ -13,12 +13,17 @@ find_package(sensor_msgs REQUIRED)
 include_directories(include)
 
 add_executable(ros2_mpu6050 src/mpu6050.cpp src/mpu6050_hal.cpp src/mpu6050_node.cpp)
-ament_target_dependencies(ros2_mpu6050 rclcpp sensor_msgs)
-target_link_libraries(ros2_mpu6050 i2c)
+target_link_libraries(ros2_mpu6050 PUBLIC
+  ${sensor_msgs_TARGETS}
+  rclcpp::rclcpp
+  sensor_msgs::sensor_msgs_library
+  i2c
+)
 
 add_executable(ros2_mpu6050_calibrate src/mpu6050.cpp src/mpu6050_hal.cpp src/mpu6050_calibrate.cpp)
-ament_target_dependencies(ros2_mpu6050_calibrate)
-target_link_libraries(ros2_mpu6050_calibrate i2c)
+target_link_libraries(ros2_mpu6050_calibrate PUBLIC
+  i2c
+)
 
 install(
   DIRECTORY include
