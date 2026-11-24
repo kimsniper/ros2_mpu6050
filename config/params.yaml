@@ -25,7 +25,10 @@ mpu6050_sensor:
     #   4      |       21          |         20          |        1
     #   5      |       10          |         10          |        1
     #   6      |       5           |         5           |        1
-    dlpf_cfg: 0
+    dlpf_cfg: 3
+
+    # Sample rate = 1000 Hz / (1 + 9) = 100 Hz when DLPF is enabled.
+    sample_rate_divider: 9
     #CLKSEL  |  Clock source
     #        |
     #   0    |  Internal 8MHz oscillator
@@ -36,13 +39,12 @@ mpu6050_sensor:
     #   5    |  PLL with external 19.2MHz reference
     #   6    |  Reserved
     #   7    |  Stops the clock and keeps the timing generator in reset
-    clock_src: 0
+    clock_src: 1
 
-    # [deg/s]
-    gyro_x_offset: 0.0
-    gyro_y_offset: 0.0
-    gyro_z_offset: 0.0
-    # [m/s²]
-    accel_x_offset: 0.0
-    accel_y_offset: 0.0
-    accel_z_offset: 0.0
+    # Gyro bias is measured at each node startup while stationary.
+
+    # Higher values give more weight to integrated gyroscope measurements.
+    complementary_filter_alpha: 0.98
+
+    # Published sensor frame.
+    frame_id: "imu_link"

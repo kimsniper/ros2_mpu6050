@@ -30,7 +30,10 @@
  */
 #include "ros2_mpu6050/mpu6050.h"
 
+#include <iomanip>
 #include <iostream>
+#include <sstream>
+#include <stdexcept>
 
 Mpu6050::Mpu6050(const std::string &device, int i2c_address)
 {
@@ -52,15 +55,23 @@ Mpu6050::Mpu6050(const std::string &device, int i2c_address)
 
     ret |= Mpu6050_GetDevideId(dev_id);
 
-    if(Mpu6050Hal::MPU6050_OK == ret && dev_id == WHO_AM_I_VAL)
+    if (Mpu6050Hal::MPU6050_OK != ret)
     {
-        std::cout << "MPU6050 initialization successful" << std::endl;
-    }
-    else
-    {
-        std::cerr << "MPU6050 initialization failed!" << std::endl;
+        throw std::runtime_error("MPU6050 initialization failed during reset, power-mode, or identity communication");
     }
 
+    if (dev_id != WHO_AM_I_VAL)
+    {
+        std::ostringstream message;
+        message << "Unexpected MPU6050 WHO_AM_I value: 0x"
+                << std::hex << std::uppercase
+                << static_cast<int>(dev_id)
+                << ", expected 0x"
+                << static_cast<int>(WHO_AM_I_VAL);
+        throw std::runtime_error(message.str());
+    }
+
+    std::cout << "MPU6050 initialization successful" << std::endl;
     mpu6050_i2c->mpu6050_i2c_hal_ms_delay(50);
 }
 
@@ -179,13 +190,13 @@ Mpu6050Hal::Mpu6050_Error_t Mpu6050::Mpu6050_SetPowerMode(Mpu6050_PwrMode_t ePwr
             switch(ePwrMode)
             {
                 case PWR_MODE_NORMAL:
-                    data &= (~PWR_MODE_SLEEP_MASK & ~PWR_MODE_CYCLE_MASK);
+                    data &= static_cast<std::uint8_t>(~(PWR_MODE_SLEEP_MASK | PWR_MODE_CYCLE_MASK));
                     break;
                 case PWR_MODE_SLEEP:
                     data |= PWR_MODE_SLEEP_MASK;
                     break;
                 case PWR_MODE_CYCLE:
-                    data &= ~(PWR_MODE_SLEEP_MASK);
+                    data &= static_cast<std::uint8_t>(~PWR_MODE_SLEEP_MASK);
                     data |= PWR_MODE_CYCLE_MASK;
                     break;
                 default:
@@ -255,7 +266,7 @@ Mpu6050Hal::Mpu6050_Error_t Mpu6050::Mpu6050_ClockSelect(Mpu6050_ClkSrc_t eClkSr
 
         if (Mpu6050Hal::MPU6050_OK == ret)
         {
-            data = cfg & ~CLKSEL_MASK;
+            data = cfg & static_cast<std::uint8_t>(~CLKSEL_MASK);
             data |= static_cast<std::uint8_t>(eClkSrc);
 
             ret |= mpu6050_i2c->mpu6050_i2c_hal_write(reg, data);;
@@ -293,7 +304,7 @@ Mpu6050Hal::Mpu6050_Error_t Mpu6050::Mpu6050_AccelFsSel(Mpu6050_AfsSel_t eAfsSel
 
         if (Mpu6050Hal::MPU6050_OK == ret)
         {
-            data = cfg & ~ACCEL_FS_SEL_MASK;
+            data = cfg & static_cast<std::uint8_t>(~ACCEL_FS_SEL_MASK);
             data |= (static_cast<std::uint8_t>(eAfsSel) << ACCEL_FS_SEL_SHIFT);
 
             ret |= mpu6050_i2c->mpu6050_i2c_hal_write(reg, data);
@@ -341,7 +352,7 @@ Mpu6050Hal::Mpu6050_Error_t Mpu6050::Mpu6050_GyroFsSel(Mpu6050_FsSel_t eFsSel)
 
         if (Mpu6050Hal::MPU6050_OK == ret)
         {
-            data = cfg & ~GYRO_FS_SEL_MASK;
+            data = cfg & static_cast<std::uint8_t>(~GYRO_FS_SEL_MASK);
             data |= (static_cast<std::uint8_t>(eFsSel) << GYRO_FS_SEL_SHIFT);
 
             ret |= mpu6050_i2c->mpu6050_i2c_hal_write(reg, data);;
@@ -388,7 +399,7 @@ Mpu6050Hal::Mpu6050_Error_t Mpu6050::Mpu6050_DlpfConfig(Mpu6050_DlpfCfg_t eDlpfC
 
         if (Mpu6050Hal::MPU6050_OK == ret)
         {
-            data = cfg & ~DLPF_CFG_MASK;
+            data = cfg & static_cast<std::uint8_t>(~DLPF_CFG_MASK);
             data |= static_cast<std::uint8_t>(eDlpfCfg);
 
             ret |= mpu6050_i2c->mpu6050_i2c_hal_write(reg, data);;
@@ -396,6 +407,21 @@ Mpu6050Hal::Mpu6050_Error_t Mpu6050::Mpu6050_DlpfConfig(Mpu6050_DlpfCfg_t eDlpfC
     }
 
     return ret;
+}
+
+/*================================================================================================*/
+/**
+* @brief        Configure the hardware sample-rate divider.
+* @details      Write the SMPLRT_DIV register.
+*
+* @param[in]    divider     Sample-rate divider value.
+*
+* @return       Mpu6050Hal::Mpu6050_Error_t     Return code.
+*
+*/
+Mpu6050Hal::Mpu6050_Error_t Mpu6050::Mpu6050_SampleRateDivider(std::uint8_t divider)
+{
+    return mpu6050_i2c->mpu6050_i2c_hal_write(REG_SMPLRT_DIV, divider);
 }
 
 /*================================================================================================*/
@@ -411,7 +437,7 @@ Mpu6050Hal::Mpu6050_Error_t Mpu6050::Mpu6050_DlpfConfig(Mpu6050_DlpfCfg_t eDlpfC
 Mpu6050Hal::Mpu6050_Error_t Mpu6050::Mpu6050_LpWakeCtrl(Mpu6050_LpWakeCtrl_t eLpWakeCtrl)
 {
     Mpu6050Hal::Mpu6050_Error_t ret = Mpu6050Hal::MPU6050_OK;
-    const std::uint8_t reg = REG_PWR_MGMT_1;
+    const std::uint8_t reg = REG_PWR_MGMT_2;
     std::uint8_t cfg = 0U;
     std::uint8_t data = 0U;
 
@@ -426,7 +452,7 @@ Mpu6050Hal::Mpu6050_Error_t Mpu6050::Mpu6050_LpWakeCtrl(Mpu6050_LpWakeCtrl_t eLp
 
         if (Mpu6050Hal::MPU6050_OK == ret)
         {
-            data = cfg & ~LP_WAKE_CTRL_MASK;
+            data = cfg & static_cast<std::uint8_t>(~LP_WAKE_CTRL_MASK);
             data |= (static_cast<std::uint8_t>(eLpWakeCtrl) << LP_WAKE_CTRL_SHIFT);
 
             ret |= mpu6050_i2c->mpu6050_i2c_hal_write(reg, data);;
@@ -488,6 +514,48 @@ Mpu6050Hal::Mpu6050_Error_t Mpu6050::Mpu6050_GetGyroData(Mpu6050_GyroData_t &Gyr
     }
 
     return ret;
+}
+
+/*================================================================================================*/
+/**
+* @brief        Get coherent accelerometer and gyroscope data.
+* @details      Read registers 0x3B through 0x48 in one burst.
+*
+* @param[out]   AccelData   Accelerometer data.
+* @param[out]   GyroData    Gyroscope data.
+*
+* @return       Mpu6050Hal::Mpu6050_Error_t     Return code.
+*
+*/
+Mpu6050Hal::Mpu6050_Error_t Mpu6050::Mpu6050_GetImuData(Mpu6050_AccelData_t &AccelData, Mpu6050_GyroData_t &GyroData)
+{
+    const std::uint8_t reg = REG_READ_ACCEL_DATA;
+    std::uint8_t data[14U] = {0U};
+
+    const auto ret = mpu6050_i2c->mpu6050_i2c_hal_read(reg, data, 14U);
+
+    if (Mpu6050Hal::MPU6050_OK != ret)
+    {
+        return ret;
+    }
+
+    const auto accel_x_raw = static_cast<int16_t>((data[0U] << MSB_8BIT_SHIFT) | data[1U]);
+    const auto accel_y_raw = static_cast<int16_t>((data[2U] << MSB_8BIT_SHIFT) | data[3U]);
+    const auto accel_z_raw = static_cast<int16_t>((data[4U] << MSB_8BIT_SHIFT) | data[5U]);
+
+    const auto gyro_x_raw = static_cast<int16_t>((data[8U] << MSB_8BIT_SHIFT) | data[9U]);
+    const auto gyro_y_raw = static_cast<int16_t>((data[10U] << MSB_8BIT_SHIFT) | data[11U]);
+    const auto gyro_z_raw = static_cast<int16_t>((data[12U] << MSB_8BIT_SHIFT) | data[13U]);
+
+    AccelData.Accel_X = (static_cast<double>(accel_x_raw) * ACCEL_GRAVITY) / aAfsSelVal[u8AfsSelCurrentVal];
+    AccelData.Accel_Y = (static_cast<double>(accel_y_raw) * ACCEL_GRAVITY) / aAfsSelVal[u8AfsSelCurrentVal];
+    AccelData.Accel_Z = (static_cast<double>(accel_z_raw) * ACCEL_GRAVITY) / aAfsSelVal[u8AfsSelCurrentVal];
+
+    GyroData.Gyro_X = static_cast<double>(gyro_x_raw) / aFsSelVal[u8FsSelCurrentVal];
+    GyroData.Gyro_Y = static_cast<double>(gyro_y_raw) / aFsSelVal[u8FsSelCurrentVal];
+    GyroData.Gyro_Z = static_cast<double>(gyro_z_raw) / aFsSelVal[u8FsSelCurrentVal];
+
+    return Mpu6050Hal::MPU6050_OK;
 }
 
 /*================================================================================================*/

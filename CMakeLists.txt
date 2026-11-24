@@ -36,4 +36,18 @@ install(
   DESTINATION share/${PROJECT_NAME}
 )
 
+if(BUILD_TESTING)
+  find_package(ament_cmake_gtest REQUIRED)
+
+  ament_add_gtest(test_orientation_math
+    test/test_orientation_math.cpp
+  )
+  target_include_directories(test_orientation_math PRIVATE include)
+
+  ament_add_gtest(test_startup_calibration
+    test/test_startup_calibration.cpp
+  )
+  target_include_directories(test_startup_calibration PRIVATE include)
+endif()
+
 ament_package()

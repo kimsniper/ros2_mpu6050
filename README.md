@@ -1,107 +1,118 @@
-# MPU6050 - For Robot Operating System 2 (ROS2)
+# MPU6050 ROS 2 Driver
 
 ## Overview
 
-This repository contains the MPU6050 package dedicated for ROS2. It contains the driver and node to allow integration with [sensor_msgs/msg/Imu Message](https://docs.ros2.org/foxy/api/sensor_msgs/msg/Imu.html)
+This package provides a ROS 2 driver for the MPU6050 accelerometer and gyroscope. It publishes acceleration, angular velocity, and estimated orientation using `sensor_msgs/msg/Imu`.
+
+The driver was tested on a Raspberry Pi 4 running ROS 2 Humble.
 
 ## Hardware
 
-This package has been tested with the following hardwares: \
+- Raspberry Pi 4
+- MPU6050 connected through I2C
+- Default I2C address: `0x68`
+- Default I2C bus: `/dev/i2c-1`
 
-Raspberry Pi 4B, 4GB RAM. \
-MPU6050 sensor breakout board used: https://components101.com/sensors/mpu6050-module \
-The Raspberry Pi 4B runs this image: https://github.com/ros-realtime/ros-realtime-rpi4-image
+Verify the sensor connection:
 
-### Preferred Environment Setup
+```bash
+i2cdetect -y 1
+```
 
-To run this example without issues, the following environment setup are preferred.
+The output should show address `68`.
 
-|                  |                          |
-|------------------|--------------------------|
-| Operating System | ros-realtime-rpi4-image  |
-| ROS2 Version     | ROS2 Humble              |
+## Build
 
-### Package Integration
+Clone the repository into the `src` directory of a ROS 2 workspace, then run:
 
-**Just clone this repository on your ros2 workspace/src.
-
-### Sensor Calibration
-
-The following steps provides detailed info to calibrate the sensor if necessary:
-
-1. Build the package
 ```bash
 colcon build --packages-select ros2_mpu6050
-```
-2. RPi to MPU6050 I2C wiring 
-3. Place the sensor in a surface perpendicular to the direction of the gravitational acceleration. (**This is important)
-4. Run the following command
-```bash
-ros2 run ros2_mpu6050 ros2_mpu6050_calibrate
-```
-5. The values of the offsets should be displayed
-```bash
-I2c communication started. .
-MPU6050 initialization successful
-
-**** Starting calibration ****
-Ensure that the mpu6050 board is positioned in a surface perpendicular to the direction gravitational accelleration
-This may take a while depending upon the no of samples, please wait. . .
-
-
-In the params.yaml file under config directory, copy the following results accordingly
-
-Gyroscope Offsets: 
-gyro_x_offset --> -1.44153
-gyro_y_offset --> 0.596412
-gyro_z_offset --> 0.618626
-
-Accelerometer Offsets: 
-accel_x_offset --> 10.601
-accel_y_offset --> -0.424632
-accel_z_offset --> -3.21498
-```
-6. Copy these values in the params.yaml file under config directory of the package replacing the 0 values
-```bash
-# [deg/s]
-gyro_x_offset: 0.0
-gyro_y_offset: 0.0
-gyro_z_offset: 0.0
-# [m/s²]
-accel_x_offset: 0.0
-accel_y_offset: 0.0
-accel_z_offset: 0.0
+source install/setup.bash
 ```
 
-## Starting the ros2_mpu6050 node
+## Run
 
-Build the package
-```bash
-colcon build --packages-select ros2_mpu6050
-```
-and execute the following command.
+Keep the robot and MPU6050 completely stationary while the node starts:
 
 ```bash
 ros2 launch ros2_mpu6050 ros2_mpu6050.launch.py
 ```
-Build specific package
 
-```bash
-colcon build --packages-select `name_of_package`
-```
+The node performs stationary gyro calibration before publishing. It discards 100 warm-up samples and then measures 500 coherent IMU samples at 100 Hz. Publication begins only after calibration passes.
 
-## Listening to the IMU topic
+If startup calibration fails, keep the robot stationary and restart the node.
 
-After launching ros2_mpu6050.launch.py,
+## Published Topic
 
-In the host PC or in the RPi SSH client terminal, does not matter, execute the following command
+Topic: `/imu/mpu6050`
+
+Message type: `sensor_msgs/msg/Imu`
+
+Inspect the published data:
 
 ```bash
 ros2 topic echo /imu/mpu6050
 ```
 
-If the above command does not work, ensure that the /imu/mpu6050 topic shows when running the following command
+Check the publication rate:
 
 ```bash
-ros2 topic list
+ros2 topic hz /imu/mpu6050
+```
+
+The default publication rate is 100 Hz. The default frame is `imu_link`.
+
+## Orientation
+
+Orientation is estimated with a complementary filter:
+
+- Roll and pitch combine integrated gyroscope data with accelerometer tilt.
+- Yaw is relative and is integrated from the calibrated Z-axis gyroscope.
+- Relative yaw starts at zero when the node starts.
+- The MPU6050 has no magnetometer, so yaw has no absolute heading reference and can drift.
+- Yaw covariance is set to `999.0` to indicate high uncertainty.
+- Published quaternions are normalized.
+
+Do not use MPU6050 yaw as the only absolute heading source for navigation.
+
+## Startup Calibration
+
+Startup calibration is part of normal node initialization. Calibration values remain in memory and are not stored in `params.yaml`.
+
+Calibration checks the following:
+
+- Acceleration magnitude is consistent with stationary gravity.
+- Acceleration-norm standard deviation does not exceed `0.15 m/s²`.
+- Gyroscope standard deviation does not exceed `0.5 deg/s` on any axis.
+- All measurements and calculated statistics are finite.
+
+The optional diagnostic executable runs the same calibration algorithm:
+
+```bash
+ros2 run ros2_mpu6050 ros2_mpu6050_calibrate
+```
+
+Its output is for inspection only. It is not required before starting the node and must not be copied into `params.yaml`.
+
+## Sensor Configuration
+
+Default settings in `config/params.yaml`:
+
+- Gyroscope range: `±250 deg/s`
+- Accelerometer range: `±2 g`
+- Digital low-pass filter: `DLPF_CFG=3`
+- Accelerometer bandwidth: approximately 44 Hz
+- Gyroscope bandwidth: approximately 42 Hz
+- Hardware sample rate: `1000 / (1 + 9) = 100 Hz`
+- Clock source: X-axis gyroscope PLL
+- Complementary-filter coefficient: `0.98`
+- Published frame: `imu_link`
+
+## Tests
+
+Run all package tests:
+
+```bash
+colcon test --packages-select ros2_mpu6050
+colcon test-result --verbose
 ```

@@ -198,6 +198,18 @@ public:
     Mpu6050Hal::Mpu6050_Error_t Mpu6050_DlpfConfig(Mpu6050_DlpfCfg_t eDlpfCfg);
 
     /**
+    * @brief        Configure the hardware sample-rate divider.
+    * @details      Set SMPLRT_DIV. The sample rate is the gyroscope output
+    *               rate divided by one plus the configured divider.
+    *
+    * @param[in]    divider     Sample-rate divider value.
+    *
+    * @return       Mpu6050Hal::Mpu6050_Error_t     Return code.
+    *
+    */
+    Mpu6050Hal::Mpu6050_Error_t Mpu6050_SampleRateDivider(std::uint8_t divider);
+
+    /**
     * @brief        Low power wake control.
     * @details      Specifies the frequency of wake-ups during Accelerometer Only Low PowerMode.
     *
@@ -228,6 +240,18 @@ public:
     *
     */
     Mpu6050Hal::Mpu6050_Error_t Mpu6050_GetGyroData(Mpu6050_GyroData_t &GyroData);
+
+    /**
+    * @brief        Get coherent accelerometer and gyroscope data.
+    * @details      Read accelerometer and gyroscope data from one register burst.
+    *
+    * @param[out]   AccelData   Accelerometer data.
+    * @param[out]   GyroData    Gyroscope data.
+    *
+    * @return       Mpu6050Hal::Mpu6050_Error_t     Return code.
+    *
+    */
+    Mpu6050Hal::Mpu6050_Error_t Mpu6050_GetImuData(Mpu6050_AccelData_t &AccelData, Mpu6050_GyroData_t &GyroData);
 
     /**
     * @brief        Read device ID.
@@ -266,6 +290,7 @@ private:
     /**
      * @brief MPU6050 command code registers
      */
+    static constexpr std::uint8_t REG_SMPLRT_DIV                  = 0x19;
     static constexpr std::uint8_t REG_CONFIG                      = 0x1A;
     static constexpr std::uint8_t REG_GYRO_CONFIG                 = 0x1B;
     static constexpr std::uint8_t REG_ACCEL_CONFIG                = 0x1C;

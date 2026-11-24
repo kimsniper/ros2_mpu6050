@@ -37,7 +37,7 @@ public:
      * @return       Mpu6050_Error_t     Return code.
      *
      */
-    Mpu6050_Error_t mpu6050_i2c_hal_read(const std::uint8_t reg, std::uint8_t aRxBuffer[], const std::uint16_t count);
+    Mpu6050_Error_t mpu6050_i2c_hal_read(const std::uint8_t reg, std::uint8_t aRxBuffer[], const std::uint8_t count);
 
     /**
      * @brief        Execute I2C read.
@@ -62,7 +62,7 @@ public:
      * @return       Mpu6050_Error_t     Return code.
      *
      */
-    Mpu6050_Error_t mpu6050_i2c_hal_write(const std::uint8_t reg, std::uint8_t aTxBuffer[], const std::uint16_t count);
+    Mpu6050_Error_t mpu6050_i2c_hal_write(const std::uint8_t reg, std::uint8_t aTxBuffer[], const std::uint8_t count);
 
     /**
      * @brief        Execute I2C write.
